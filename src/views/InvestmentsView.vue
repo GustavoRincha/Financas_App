@@ -127,6 +127,9 @@
       </v-col>
     </v-row>
 
+    <!-- Simulador de Aportes/Juros -->
+    <CompoundInterestSimulator />
+
     <!-- Dialog -->
     <v-dialog v-model="dialog" max-width="500px">
       <v-card class="rounded-xl">
@@ -256,6 +259,7 @@
 <script setup>
 import { ref, computed, watchEffect } from 'vue';
 import { useStore } from 'vuex';
+import CompoundInterestSimulator from '../components/CompoundInterestSimulator.vue';
 
 const store = useStore();
 const investments = computed(() => store.state.finance.investments || []);
@@ -360,8 +364,5 @@ function getCdiYield(amount, cdiPercentage) {
 <style scoped>
 .gap-2 {
   gap: 8px;
-}
-. inversiones {
-  /* No additional scoped rules needed */
 }
 </style>

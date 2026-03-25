@@ -1,9 +1,14 @@
 <template>
   <div class="dashboard">
-    <v-row class="mb-2">
-      <v-col cols="12">
+    <v-row class="mb-2 d-flex align-center justify-space-between">
+      <v-col cols="12" sm="8">
         <h2 class="text-h4 font-weight-bold text-grey-darken-3 mb-1">Olá, Gustavo!</h2>
-        <p class="text-grey mb-4">Aqui está o resumo das suas finanças neste mês.</p>
+        <p class="text-grey mb-4">Aqui está o resumo das suas finanças de {{ selectedMonthName }} de {{ selectedYear }}.</p>
+      </v-col>
+      <v-col cols="12" sm="4" class="text-sm-right mt-2 mt-sm-0">
+        <v-btn variant="tonal" color="primary" rounded="lg" prepend-icon="mdi-calendar" @click="filterDialog = true">
+          {{ selectedMonthName }} / {{ selectedYear }}
+        </v-btn>
       </v-col>
     </v-row>
 
@@ -84,6 +89,16 @@
       </v-col>
     </v-row>
 
+    <!-- Gráficos Analíticos -->
+    <v-row class="mt-4">
+      <v-col cols="12" md="5">
+        <ExpenseCategoryChart />
+      </v-col>
+      <v-col cols="12" md="7">
+        <IncomeExpenseBarChart />
+      </v-col>
+    </v-row>
+
     <!-- Meta de Economia -->
     <v-row class="mt-4">
       <v-col cols="12" md="6">
@@ -115,12 +130,12 @@
       <v-col cols="12" md="6">
          <v-card class="rounded-xl" elevation="1" height="100%">
           <v-card-title class="font-weight-bold pa-5 pb-2 d-flex justify-space-between align-center">
-            <span>Últimas Movimentações</span>
+            <span>Movimentações do Mês</span>
             <v-btn variant="text" color="primary" size="small" to="/transactions">Ver Todas</v-btn>
           </v-card-title>
           <v-list lines="two" class="pa-2">
             <v-list-item v-if="recentTransactions.length === 0">
-              <div class="text-center py-4 text-grey">Nenhuma transação registrada ainda.</div>
+              <div class="text-center py-4 text-grey">Nenhuma transação no período.</div>
             </v-list-item>
             <template v-for="(item, index) in recentTransactions" :key="item.id">
               <v-list-item class="rounded-lg mb-1">
@@ -130,7 +145,7 @@
                   </v-avatar>
                 </template>
                 <v-list-item-title class="font-weight-medium">{{ item.description }}</v-list-item-title>
-                <v-list-item-subtitle>{{ formatDate(item.date) }}</v-list-item-subtitle>
+                <v-list-item-subtitle>{{ formatDate(item.date) }} <span v-if="item.category">• {{ item.category }}</span></v-list-item-subtitle>
                 <template v-slot:append>
                   <div class="font-weight-bold" :class="item.type === 'income' ? 'text-success' : 'text-error'">
                     {{ item.type === 'income' ? '+' : '-' }} R$ {{ formatMoney(item.amount) }}
@@ -143,6 +158,37 @@
         </v-card>
       </v-col>
     </v-row>
+
+    <!-- Dialog Filtro Data -->
+    <v-dialog v-model="filterDialog" max-width="400px">
+      <v-card class="rounded-xl">
+        <v-card-title class="font-weight-bold pa-5 pb-0">Filtrar por Período</v-card-title>
+        <v-card-text class="pa-5">
+           <v-select
+             v-model="tempMonth"
+             :items="months"
+             label="Mês"
+             variant="outlined"
+             color="primary"
+             density="comfortable"
+             class="mb-2"
+           ></v-select>
+           <v-text-field
+             v-model="tempYear"
+             label="Ano"
+             type="number"
+             variant="outlined"
+             color="primary"
+             density="comfortable"
+           ></v-text-field>
+        </v-card-text>
+        <v-card-actions class="pa-5 pt-0">
+          <v-spacer></v-spacer>
+          <v-btn color="grey-darken-1" variant="text" @click="filterDialog = false">Cancelar</v-btn>
+          <v-btn color="primary" variant="flat" class="rounded-lg px-4" @click="applyFilter">Aplicar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <!-- Dialog Meta -->
     <v-dialog v-model="editGoalDialog" max-width="400px">
@@ -170,7 +216,7 @@
     <!-- Dialog Renda Base -->
     <v-dialog v-model="editIncomeDialog" max-width="400px">
       <v-card class="rounded-xl">
-        <v-card-title class="font-weight-bold pa-5 pb-0">Definir Renda Mensal Mensal</v-card-title>
+        <v-card-title class="font-weight-bold pa-5 pb-0">Definir Renda Base Mensal</v-card-title>
         <v-card-text class="pa-5">
            <v-text-field
             v-model="tempIncome"
@@ -196,9 +242,11 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watchEffect } from 'vue';
 import { useStore } from 'vuex';
 import TransactionFormDialog from '../components/TransactionFormDialog.vue';
+import ExpenseCategoryChart from '../components/ExpenseCategoryChart.vue';
+import IncomeExpenseBarChart from '../components/IncomeExpenseBarChart.vue';
 import moment from 'moment';
 
 const store = useStore();
@@ -208,7 +256,47 @@ const totalCredit = computed(() => store.getters['finance/totalCredit']);
 const totalDebit = computed(() => store.getters['finance/totalDebit']);
 const savingsGoal = computed(() => store.state.finance.savingsGoal);
 const income = computed(() => store.state.finance.income);
-const allTransactions = computed(() => store.state.finance.transactions);
+const allTransactions = computed(() => store.getters['finance/filteredTransactions']);
+
+const selectedMonth = computed(() => store.state.finance.selectedMonth);
+const selectedYear = computed(() => store.state.finance.selectedYear);
+
+const months = [
+  { value: 1, title: 'Janeiro' },
+  { value: 2, title: 'Fevereiro' },
+  { value: 3, title: 'Março' },
+  { value: 4, title: 'Abril' },
+  { value: 5, title: 'Maio' },
+  { value: 6, title: 'Junho' },
+  { value: 7, title: 'Julho' },
+  { value: 8, title: 'Agosto' },
+  { value: 9, title: 'Setembro' },
+  { value: 10, title: 'Outubro' },
+  { value: 11, title: 'Novembro' },
+  { value: 12, title: 'Dezembro' }
+];
+
+const selectedMonthName = computed(() => {
+  const m = months.find(m => m.value === selectedMonth.value);
+  return m ? m.title : '';
+});
+
+const filterDialog = ref(false);
+const tempMonth = ref(selectedMonth.value);
+const tempYear = ref(selectedYear.value);
+
+watchEffect(() => {
+  if (filterDialog.value) {
+    tempMonth.value = selectedMonth.value;
+    tempYear.value = selectedYear.value;
+  }
+});
+
+function applyFilter() {
+  store.dispatch('finance/updateSelectedMonth', tempMonth.value);
+  store.dispatch('finance/updateSelectedYear', tempYear.value);
+  filterDialog.value = false;
+}
 
 const totalIncomeRender = computed(() => {
   const manualIncome = allTransactions.value

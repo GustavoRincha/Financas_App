@@ -2,8 +2,8 @@
   <div class="transactions">
     <v-row class="mb-4 d-flex align-center justify-space-between">
       <v-col cols="12" sm="8">
-        <h2 class="text-h4 font-weight-bold text-grey-darken-3">Extrato Completo</h2>
-        <p class="text-grey">Histórico detalhado de todas as suas entradas e saídas.</p>
+        <h2 class="text-h4 font-weight-bold text-grey-darken-3">Extrato: {{ selectedMonthName }} de {{ selectedYear }}</h2>
+        <p class="text-grey">Histórico detalhado de todas as suas entradas e saídas deste mês.</p>
       </v-col>
     </v-row>
 
@@ -11,7 +11,7 @@
       <v-card-text class="pa-0">
         <v-list lines="two" bg-color="transparent" class="py-0">
           <v-list-item v-if="transactions.length === 0" class="py-8 text-center text-grey">
-            Nenhuma movimentação registrada. Use o botão + para adicionar.
+            Nenhuma movimentação registrada neste período.
           </v-list-item>
 
           <template v-for="(item, index) in transactions" :key="item.id">
@@ -27,7 +27,7 @@
                   </v-avatar>
                 </template>
                 <v-list-item-title class="font-weight-bold text-subtitle-1">{{ item.description }}</v-list-item-title>
-                <v-list-item-subtitle class="text-grey">{{ formatDate(item.date) }} • {{ getTypeName(item.type) }}</v-list-item-subtitle>
+                <v-list-item-subtitle class="text-grey">{{ formatDate(item.date) }} • {{ getTypeName(item.type) }} <span v-if="item.category">• {{ item.category }}</span></v-list-item-subtitle>
                 
                 <template v-slot:append>
                   <div class="d-flex align-center">
@@ -56,7 +56,16 @@ import moment from 'moment';
 import TransactionFormDialog from '../components/TransactionFormDialog.vue';
 
 const store = useStore();
-const transactions = computed(() => store.state.finance.transactions);
+const transactions = computed(() => store.getters['finance/filteredTransactions']);
+
+const selectedMonth = computed(() => store.state.finance.selectedMonth);
+const selectedYear = computed(() => store.state.finance.selectedYear);
+
+const months = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+const selectedMonthName = computed(() => months[selectedMonth.value - 1]);
 
 function confirmDelete(id) {
   if (confirm('Tem certeza que deseja excluir esta movimentação?')) {

@@ -6,15 +6,23 @@ export default {
     transactions: [],
     investments: [],
     currentCdiRate: 10.40,
+    selectedMonth: new Date().getMonth() + 1,
+    selectedYear: new Date().getFullYear(),
   },
   getters: {
-    totalCredit(state) {
-      return state.transactions
+    filteredTransactions(state) {
+      return state.transactions.filter(t => {
+        const date = new Date(t.date);
+        return (date.getMonth() + 1) === state.selectedMonth && date.getFullYear() === state.selectedYear;
+      });
+    },
+    totalCredit(state, getters) {
+      return getters.filteredTransactions
         .filter(t => t.type === 'credit')
         .reduce((sum, t) => sum + t.amount, 0);
     },
-    totalDebit(state) {
-      return state.transactions
+    totalDebit(state, getters) {
+      return getters.filteredTransactions
         .filter(t => t.type === 'debit')
         .reduce((sum, t) => sum + t.amount, 0);
     },
@@ -22,7 +30,7 @@ export default {
       return getters.totalCredit + getters.totalDebit;
     },
     balance(state, getters) {
-      const incomeCalc = state.transactions
+      const incomeCalc = getters.filteredTransactions
         .filter(t => t.type === 'income')
         .reduce((sum, t) => sum + t.amount, 0);
       return state.income + incomeCalc - getters.totalExpenses;
@@ -35,12 +43,20 @@ export default {
       if (data.transactions) state.transactions = data.transactions;
       if (data.investments) state.investments = data.investments;
       if (data.currentCdiRate !== undefined) state.currentCdiRate = data.currentCdiRate;
+      if (data.selectedMonth !== undefined) state.selectedMonth = data.selectedMonth;
+      if (data.selectedYear !== undefined) state.selectedYear = data.selectedYear;
     },
     SET_INCOME(state, income) {
       state.income = Number(income);
     },
     SET_CDI_RATE(state, rate) {
       state.currentCdiRate = Number(rate);
+    },
+    SET_SELECTED_MONTH(state, month) {
+      state.selectedMonth = Number(month);
+    },
+    SET_SELECTED_YEAR(state, year) {
+      state.selectedYear = Number(year);
     },
     SET_SAVINGS_GOAL(state, goal) {
       state.savingsGoal = Number(goal);
@@ -76,6 +92,14 @@ export default {
       commit('SET_CDI_RATE', rate);
       dispatch('saveData');
     },
+    updateSelectedMonth({ commit, dispatch }, month) {
+      commit('SET_SELECTED_MONTH', month);
+      dispatch('saveData');
+    },
+    updateSelectedYear({ commit, dispatch }, year) {
+      commit('SET_SELECTED_YEAR', year);
+      dispatch('saveData');
+    },
     updateSavingsGoal({ commit, dispatch }, goal) {
       commit('SET_SAVINGS_GOAL', goal);
       dispatch('saveData');
@@ -84,8 +108,8 @@ export default {
       const newTransaction = {
         ...transaction,
         amount: Number(transaction.amount),
-        id: Date.now().toString(),
-        date: new Date().toISOString(),
+        id: Date.now().toString() + '-' + Math.floor(Math.random() * 10000),
+        date: transaction.customDate || new Date().toISOString(),
       };
       commit('ADD_TRANSACTION', newTransaction);
       dispatch('saveData');

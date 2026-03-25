@@ -19,6 +19,7 @@
             item-value="value"
             class="mb-2"
             required
+            @update:modelValue="transaction.category = ''"
           >
             <template v-slot:selection="{ item }">
               <v-icon :color="item.raw.color" class="mr-2">{{ item.raw.icon }}</v-icon>
@@ -33,9 +34,21 @@
             </template>
           </v-select>
 
+          <v-select
+            v-model="transaction.category"
+            :items="currentCategories"
+            label="Categoria"
+            variant="outlined"
+            density="comfortable"
+            color="primary"
+            class="mb-2"
+            :rules="[v => !!v || 'Categoria é obrigatória']"
+            required
+          ></v-select>
+
           <v-text-field
             v-model="transaction.amount"
-            label="Valor (R$)"
+            label="Valor Total (R$)"
             type="number"
             variant="outlined"
             density="comfortable"
@@ -44,6 +57,20 @@
             class="mb-2"
             :rules="[v => !!v || 'Valor é obrigatório', v => v > 0 || 'Valor deve ser maior que zero']"
             required
+          ></v-text-field>
+
+          <v-text-field
+            v-if="transaction.type === 'credit'"
+            v-model.number="transaction.installments"
+            label="Número de Parcelas"
+            type="number"
+            variant="outlined"
+            density="comfortable"
+            color="primary"
+            class="mb-2"
+            min="1"
+            hint="Dividirá o valor total nos próximos meses"
+            persistent-hint
           ></v-text-field>
 
           <v-text-field
@@ -69,7 +96,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useStore } from 'vuex';
 
 const dialog = ref(false);
@@ -83,9 +110,18 @@ const types = [
   { title: 'Gasto - Débito / Pix', value: 'debit', icon: 'mdi-bank-transfer', color: 'warning' }
 ];
 
+const expenseCategories = ['Alimentação', 'Transporte', 'Moradia', 'Lazer', 'Saúde', 'Educação', 'Compras', 'Serviços', 'Outros'];
+const incomeCategories = ['Salário', 'Rendimentos', 'Vendas', 'Presente', 'Outros'];
+
+const currentCategories = computed(() => {
+  return transaction.value.type === 'income' ? incomeCategories : expenseCategories;
+});
+
 const transaction = ref({
   type: 'debit',
+  category: '',
   amount: '',
+  installments: 1,
   description: ''
 });
 
@@ -94,7 +130,9 @@ function close() {
   setTimeout(() => {
     transaction.value = {
       type: 'debit',
+      category: '',
       amount: '',
+      installments: 1,
       description: ''
     };
     if (form.value) {
@@ -105,7 +143,30 @@ function close() {
 
 function save() {
   if (valid.value) {
-    store.dispatch('finance/addTransaction', transaction.value);
+    if (transaction.value.type === 'credit' && transaction.value.installments > 1) {
+      const installments = parseInt(transaction.value.installments);
+      const totalAmount = Number(transaction.value.amount);
+      const installmentAmount = (totalAmount / installments).toFixed(2);
+      
+      const baseDate = new Date();
+      
+      for (let i = 1; i <= installments; i++) {
+        const targetDate = new Date(baseDate);
+        targetDate.setMonth(baseDate.getMonth() + (i - 1));
+        
+        const newTx = {
+          type: 'credit',
+          category: transaction.value.category,
+          amount: Number(installmentAmount),
+          description: `${transaction.value.description} (${i}/${installments})`,
+          customDate: targetDate.toISOString()
+        };
+        
+        store.dispatch('finance/addTransaction', newTx);
+      }
+    } else {
+      store.dispatch('finance/addTransaction', transaction.value);
+    }
     close();
   }
 }
