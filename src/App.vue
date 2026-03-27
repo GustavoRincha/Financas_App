@@ -16,12 +16,16 @@
       </v-list>
     </v-navigation-drawer>
 
-    <v-app-bar app elevation="0" color="grey-lighten-4">
+    <v-app-bar app elevation="0" :color="isDark ? 'surface' : 'background'">
       <v-app-bar-nav-icon color="primary" @click="drawer = !drawer"></v-app-bar-nav-icon>
       <v-app-bar-title class="font-weight-bold text-primary">Controle Financeiro</v-app-bar-title>
+      <v-spacer></v-spacer>
+      <v-btn icon @click="toggleTheme" color="primary">
+        <v-icon>{{ isDark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
+      </v-btn>
     </v-app-bar>
 
-    <v-main class="bg-grey-lighten-4">
+    <v-main class="bg-background">
       <v-container fluid class="pa-4 pa-md-6">
         <router-view />
       </v-container>
@@ -30,11 +34,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed, watchEffect } from 'vue';
 import { useStore } from 'vuex';
+import { useTheme } from 'vuetify';
 
 const drawer = ref(null);
 const store = useStore();
+const theme = useTheme();
+
+const isDark = computed(() => store.state.finance.theme === 'dark');
+
+watchEffect(() => {
+  theme.global.name.value = store.state.finance.theme || 'light';
+});
+
+function toggleTheme() {
+  store.dispatch('finance/toggleTheme');
+}
 
 onMounted(() => {
   store.dispatch('finance/loadData');

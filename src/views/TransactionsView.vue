@@ -1,24 +1,78 @@
 <template>
   <div class="transactions">
     <v-row class="mb-4 d-flex align-center justify-space-between">
-      <v-col cols="12" sm="8">
-        <h2 class="text-h4 font-weight-bold text-grey-darken-3">Extrato: {{ selectedMonthName }} de {{ selectedYear }}</h2>
-        <p class="text-grey">Histórico detalhado de todas as suas entradas e saídas deste mês.</p>
+      <v-col cols="12">
+        <h2 class="text-h4 font-weight-bold mb-1 d-flex align-center">
+          Extrato 
+          <v-chip v-if="filters.startDate || filters.endDate" color="primary" class="ml-4" variant="tonal">Filtro Personalizado de Datas</v-chip>
+          <span v-else class="text-h5 text-grey ml-3 font-weight-regular">{{ selectedMonthName }} / {{ selectedYear }}</span>
+        </h2>
+        <p class="text-grey">Busque e analise detalhadamente o seu histórico.</p>
       </v-col>
     </v-row>
+
+    <!-- Barra de Filtros -->
+    <v-card class="rounded-xl mb-6 pa-4 elevation-1 bg-surface">
+      <v-row dense>
+        <v-col cols="12" sm="6" md="3">
+          <v-select
+             v-model="filters.type"
+             :items="typeOptions"
+             label="Tipo"
+             variant="outlined"
+             density="compact"
+             color="primary"
+             hide-details
+          ></v-select>
+        </v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-select
+             v-model="filters.category"
+             :items="categoryOptions"
+             label="Categoria"
+             variant="outlined"
+             density="compact"
+             color="primary"
+             hide-details
+          ></v-select>
+        </v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field
+             v-model="filters.startDate"
+             type="date"
+             label="A partir de"
+             variant="outlined"
+             density="compact"
+             color="primary"
+             hide-details
+          ></v-text-field>
+        </v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field
+             v-model="filters.endDate"
+             type="date"
+             label="Até"
+             variant="outlined"
+             density="compact"
+             color="primary"
+             hide-details
+          ></v-text-field>
+        </v-col>
+      </v-row>
+    </v-card>
 
     <v-card class="rounded-xl elevation-1">
       <v-card-text class="pa-0">
         <v-list lines="two" bg-color="transparent" class="py-0">
-          <v-list-item v-if="transactions.length === 0" class="py-8 text-center text-grey">
-            Nenhuma movimentação registrada neste período.
+          <v-list-item v-if="filteredTransactions.length === 0" class="py-8 text-center text-grey">
+            Nenhuma movimentação encontrada para o filtro selecionado.
           </v-list-item>
 
-          <template v-for="(item, index) in transactions" :key="item.id">
+          <template v-for="(item, index) in filteredTransactions" :key="item.id">
             <v-hover v-slot="{ isHovering, props }">
               <v-list-item 
                 class="px-5 py-3" 
-                :class="{ 'bg-grey-lighten-4': isHovering }" 
+                :class="{ 'bg-background': isHovering }" 
                 v-bind="props"
               >
                 <template v-slot:prepend>
@@ -39,7 +93,7 @@
                 </template>
               </v-list-item>
             </v-hover>
-            <v-divider v-if="index < transactions.length - 1"></v-divider>
+            <v-divider v-if="index < filteredTransactions.length - 1"></v-divider>
           </template>
         </v-list>
       </v-card-text>
@@ -50,13 +104,13 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed, watchEffect } from 'vue';
 import { useStore } from 'vuex';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import TransactionFormDialog from '../components/TransactionFormDialog.vue';
 
 const store = useStore();
-const transactions = computed(() => store.getters['finance/filteredTransactions']);
+const allTransactions = computed(() => store.state.finance.transactions || []);
 
 const selectedMonth = computed(() => store.state.finance.selectedMonth);
 const selectedYear = computed(() => store.state.finance.selectedYear);
@@ -66,6 +120,65 @@ const months = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 const selectedMonthName = computed(() => months[selectedMonth.value - 1]);
+
+const filters = ref({
+  type: 'Todos',
+  category: 'Todas',
+  startDate: '',
+  endDate: ''
+});
+
+const typeOptions = ['Todos', 'Entradas', 'Saídas', 'Cartão de Crédito', 'Débito / Pix'];
+const incomeCategories = ['Salário', 'Rendimentos', 'Vendas', 'Outros Ganhos'];
+const expenseCategories = ['Alimentação', 'Transporte', 'Moradia', 'Lazer', 'Saúde', 'Educação', 'Compras', 'Serviços', 'Outros'];
+
+const categoryOptions = computed(() => {
+  if (filters.value.type === 'Entradas') return ['Todas', ...incomeCategories];
+  if (filters.value.type === 'Saídas' || filters.value.type === 'Cartão de Crédito' || filters.value.type === 'Débito / Pix') return ['Todas', ...expenseCategories];
+  return ['Todas', ...incomeCategories, ...expenseCategories];
+});
+
+watchEffect(() => {
+  // Reset category if not available in new type dropdown
+  if (!categoryOptions.value.includes(filters.value.category)) {
+    filters.value.category = 'Todas';
+  }
+});
+
+const filteredTransactions = computed(() => {
+  return allTransactions.value.filter(t => {
+    // Type Filter
+    if (filters.value.type === 'Entradas' && t.type !== 'income') return false;
+    if (filters.value.type === 'Saídas' && t.type === 'income') return false;
+    if (filters.value.type === 'Cartão de Crédito' && t.type !== 'credit') return false;
+    if (filters.value.type === 'Débito / Pix' && t.type !== 'debit') return false;
+
+    // Category Filter
+    if (filters.value.category !== 'Todas' && t.category !== filters.value.category) return false;
+
+    // Dates Filter
+    const tDate = new Date(t.date);
+    if (filters.value.startDate || filters.value.endDate) {
+      if (filters.value.startDate) {
+        const start = new Date(filters.value.startDate + 'T00:00:00');
+        if (tDate < start) return false;
+      }
+      if (filters.value.endDate) {
+        const end = new Date(filters.value.endDate + 'T23:59:59');
+        if (tDate > end) return false;
+      }
+    } else {
+      // Default to Global Month/Year if no dates chosen
+      const rMonth = selectedMonth.value;
+      const rYear = selectedYear.value;
+      if (tDate.getMonth() + 1 !== rMonth || tDate.getFullYear() !== rYear) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+});
 
 function confirmDelete(id) {
   if (confirm('Tem certeza que deseja excluir esta movimentação?')) {
@@ -79,7 +192,7 @@ function formatMoney(value) {
 }
 
 function formatDate(dateStr) {
-  return moment(dateStr).format('DD/MM/YYYY HH:mm');
+  return dayjs(dateStr).format('DD/MM/YYYY HH:mm');
 }
 
 function getTypeName(type) {

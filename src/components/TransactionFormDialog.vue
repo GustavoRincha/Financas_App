@@ -74,6 +74,18 @@
           ></v-text-field>
 
           <v-text-field
+            v-model="transaction.customDateInput"
+            label="Data da Transação (Opcional)"
+            type="date"
+            variant="outlined"
+            density="comfortable"
+            color="primary"
+            class="mb-2"
+            hint="Se não informada, usará o dia e a hora de hoje."
+            persistent-hint
+          ></v-text-field>
+
+          <v-text-field
             v-model="transaction.description"
             label="Descrição (Ex: Condomínio, Salário)"
             variant="outlined"
@@ -122,6 +134,7 @@ const transaction = ref({
   category: '',
   amount: '',
   installments: 1,
+  customDateInput: '',
   description: ''
 });
 
@@ -133,6 +146,7 @@ function close() {
       category: '',
       amount: '',
       installments: 1,
+      customDateInput: '',
       description: ''
     };
     if (form.value) {
@@ -143,30 +157,42 @@ function close() {
 
 function save() {
   if (valid.value) {
-    if (transaction.value.type === 'credit' && transaction.value.installments > 1) {
-      const installments = parseInt(transaction.value.installments);
-      const totalAmount = Number(transaction.value.amount);
-      const installmentAmount = (totalAmount / installments).toFixed(2);
-      
-      const baseDate = new Date();
-      
-      for (let i = 1; i <= installments; i++) {
-        const targetDate = new Date(baseDate);
-        targetDate.setMonth(baseDate.getMonth() + (i - 1));
-        
-        const newTx = {
-          type: 'credit',
-          category: transaction.value.category,
-          amount: Number(installmentAmount),
-          description: `${transaction.value.description} (${i}/${installments})`,
-          customDate: targetDate.toISOString()
-        };
-        
-        store.dispatch('finance/addTransaction', newTx);
+    const baseDate = transaction.value.customDateInput 
+      ? new Date(transaction.value.customDateInput + 'T12:00:00') 
+      : new Date();
+
+    const ccClosingDay = store.state.finance.creditCardClosingDay;
+    if (transaction.value.type === 'credit' && ccClosingDay) {
+      const purchaseDay = baseDate.getDate();
+      if (purchaseDay >= ccClosingDay) {
+         baseDate.setMonth(baseDate.getMonth() + 1);
       }
-    } else {
-      store.dispatch('finance/addTransaction', transaction.value);
     }
+
+    const installments = transaction.value.type === 'credit' && transaction.value.installments > 1 
+      ? parseInt(transaction.value.installments) : 1;
+
+    const totalAmount = Number(transaction.value.amount);
+    const installmentAmount = installments > 1 ? (totalAmount / installments).toFixed(2) : totalAmount;
+    
+    for (let i = 1; i <= installments; i++) {
+      const targetDate = new Date(baseDate);
+      targetDate.setMonth(baseDate.getMonth() + (i - 1));
+      
+      let desc = transaction.value.description;
+      if (installments > 1) desc += ` (${i}/${installments})`;
+      
+      const newTx = {
+        type: transaction.value.type,
+        category: transaction.value.category,
+        amount: Number(installmentAmount),
+        description: desc,
+        customDate: targetDate.toISOString()
+      };
+      
+      store.dispatch('finance/addTransaction', newTx);
+    }
+    
     close();
   }
 }

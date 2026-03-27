@@ -8,6 +8,13 @@ export default {
     currentCdiRate: 10.40,
     selectedMonth: new Date().getMonth() + 1,
     selectedYear: new Date().getFullYear(),
+    categoryBudgets: {},
+    apiKeys: {
+      brapi: ''
+    },
+    lastYieldInjectionDate: '',
+    creditCardClosingDay: null,
+    theme: 'light'
   },
   getters: {
     filteredTransactions(state) {
@@ -34,6 +41,26 @@ export default {
         .filter(t => t.type === 'income')
         .reduce((sum, t) => sum + t.amount, 0);
       return state.income + incomeCalc - getters.totalExpenses;
+    },
+    totalEstimatedYield(state) {
+      let yieldSum = 0;
+      if (!state.investments) return 0;
+      state.investments.forEach(item => {
+        if (item.type === 'fii') {
+          yieldSum += (Number(item.quotas) * Number(item.yieldPerQuota));
+        } else if (item.type === 'cdi') {
+          const cdiAnnualRate = Number(state.currentCdiRate) / 100;
+          const dailyCdiFactor = Math.pow(1 + cdiAnnualRate, 1 / 252);
+          const dailyInvestmentRate = (dailyCdiFactor - 1) * (Number(item.cdiPercentage) / 100);
+          const monthlyFactor = Math.pow(1 + dailyInvestmentRate, 21);
+          yieldSum += Number(item.amount) * (monthlyFactor - 1);
+        } else if (item.type === 'fixed') {
+          const rate = Number(item.annualRate) / 100;
+          const monthlyRate = Math.pow(1 + rate, 1 / 12) - 1;
+          yieldSum += Number(item.amount) * monthlyRate;
+        }
+      });
+      return yieldSum;
     }
   },
   mutations: {
@@ -45,6 +72,11 @@ export default {
       if (data.currentCdiRate !== undefined) state.currentCdiRate = data.currentCdiRate;
       if (data.selectedMonth !== undefined) state.selectedMonth = data.selectedMonth;
       if (data.selectedYear !== undefined) state.selectedYear = data.selectedYear;
+      if (data.categoryBudgets !== undefined) state.categoryBudgets = data.categoryBudgets;
+      if (data.apiKeys !== undefined) state.apiKeys = data.apiKeys;
+      if (data.lastYieldInjectionDate !== undefined) state.lastYieldInjectionDate = data.lastYieldInjectionDate;
+      if (data.creditCardClosingDay !== undefined) state.creditCardClosingDay = data.creditCardClosingDay;
+      if (data.theme !== undefined) state.theme = data.theme;
     },
     SET_INCOME(state, income) {
       state.income = Number(income);
@@ -61,6 +93,9 @@ export default {
     SET_SAVINGS_GOAL(state, goal) {
       state.savingsGoal = Number(goal);
     },
+    SET_CATEGORY_BUDGETS(state, budgets) {
+      state.categoryBudgets = { ...state.categoryBudgets, ...budgets };
+    },
     ADD_TRANSACTION(state, transaction) {
       state.transactions.unshift(transaction);
     },
@@ -72,6 +107,24 @@ export default {
     },
     REMOVE_INVESTMENT(state, id) {
       state.investments = state.investments.filter(i => i.id !== id);
+    },
+    UPDATE_INVESTMENT_PRICE(state, { id, price }) {
+      const index = state.investments.findIndex(i => i.id === id);
+      if (index !== -1) {
+        state.investments[index].currentPrice = price;
+      }
+    },
+    UPDATE_API_KEYS(state, keys) {
+      state.apiKeys = { ...state.apiKeys, ...keys };
+    },
+    SET_YIELD_INJECTION_DATE(state, dateStr) {
+      state.lastYieldInjectionDate = dateStr;
+    },
+    SET_CC_CLOSING_DAY(state, day) {
+      state.creditCardClosingDay = day ? Number(day) : null;
+    },
+    SET_THEME(state, theme) {
+      state.theme = theme;
     }
   },
   actions: {
@@ -104,11 +157,15 @@ export default {
       commit('SET_SAVINGS_GOAL', goal);
       dispatch('saveData');
     },
+    updateCategoryBudgets({ commit, dispatch }, budgets) {
+      commit('SET_CATEGORY_BUDGETS', budgets);
+      dispatch('saveData');
+    },
     addTransaction({ commit, dispatch }, transaction) {
       const newTransaction = {
         ...transaction,
         amount: Number(transaction.amount),
-        id: Date.now().toString() + '-' + Math.floor(Math.random() * 10000),
+        id: crypto.randomUUID(),
         date: transaction.customDate || new Date().toISOString(),
       };
       commit('ADD_TRANSACTION', newTransaction);
@@ -121,7 +178,7 @@ export default {
     addInvestment({ commit, dispatch }, investment) {
       const newInvest = {
         ...investment,
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         date: new Date().toISOString()
       };
       commit('ADD_INVESTMENT', newInvest);
@@ -129,6 +186,27 @@ export default {
     },
     removeInvestment({ commit, dispatch }, id) {
       commit('REMOVE_INVESTMENT', id);
+      dispatch('saveData');
+    },
+    updateInvestmentPrice({ commit, dispatch }, payload) {
+      commit('UPDATE_INVESTMENT_PRICE', payload);
+      dispatch('saveData');
+    },
+    updateApiKeys({ commit, dispatch }, keys) {
+      commit('UPDATE_API_KEYS', keys);
+      dispatch('saveData');
+    },
+    updateYieldInjectionDate({ commit, dispatch }, dateStr) {
+      commit('SET_YIELD_INJECTION_DATE', dateStr);
+      dispatch('saveData');
+    },
+    updateCcClosingDay({ commit, dispatch }, day) {
+      commit('SET_CC_CLOSING_DAY', day);
+      dispatch('saveData');
+    },
+    toggleTheme({ commit, dispatch, state }) {
+      const newTheme = state.theme === 'dark' ? 'light' : 'dark';
+      commit('SET_THEME', newTheme);
       dispatch('saveData');
     }
   }
