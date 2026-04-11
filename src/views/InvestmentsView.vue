@@ -400,6 +400,23 @@
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000">
       {{ snackbar.text }}
     </v-snackbar>
+
+    <!-- Modal de Confirmação de Remoção -->
+    <v-dialog v-model="deleteDialog" max-width="400">
+      <v-card class="rounded-xl pa-2 bg-surface">
+        <v-card-title class="text-h6 font-weight-bold d-flex align-center">
+           <v-icon color="error" class="mr-2">mdi-alert</v-icon> Remover Investimento
+        </v-card-title>
+        <v-card-text class="text-body-1">
+          Tem certeza que deseja remover este item do portfólio? O montante deixará de ser somado aos totais.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="grey-darken-1" variant="text" @click="deleteDialog = false">Cancelar</v-btn>
+          <v-btn color="error" variant="elevated" class="px-4" @click="executeDelete">Remover</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -497,9 +514,20 @@ function saveInvestment() {
   }
 }
 
+const deleteDialog = ref(false);
+const itemToDelete = ref(null);
+
 function confirmDelete(id) {
-  if (confirm('Remover este item do portfólio?')) {
-    store.dispatch('finance/removeInvestment', id);
+  itemToDelete.value = id;
+  deleteDialog.value = true;
+}
+
+function executeDelete() {
+  if (itemToDelete.value) {
+    store.dispatch('finance/removeInvestment', itemToDelete.value);
+    deleteDialog.value = false;
+    itemToDelete.value = null;
+    showSnackbar('Investimento removido.', 'info');
   }
 }
 

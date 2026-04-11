@@ -121,9 +121,9 @@
               height="12" 
               rounded="pill"
             ></v-progress-linear>
-            <div class="mt-4 d-flex">
-              <v-btn variant="tonal" color="secondary" size="small" class="rounded-lg" @click="editGoalDialog = true">Definir Meta</v-btn>
-              <v-btn variant="tonal" color="primary" size="small" class="rounded-lg ml-2" @click="editIncomeDialog = true">Definir Renda Base</v-btn>
+            <div class="mt-4 d-flex flex-column flex-sm-row">
+              <v-btn variant="tonal" color="secondary" size="small" class="rounded-lg mb-3 mb-sm-0" @click="editGoalDialog = true">Definir Meta</v-btn>
+              <v-btn variant="tonal" color="primary" size="small" class="rounded-lg ml-sm-3" @click="editIncomeDialog = true">Definir Renda Base</v-btn>
             </div>
           </v-card-text>
         </v-card>

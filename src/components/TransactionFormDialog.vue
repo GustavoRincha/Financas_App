@@ -73,17 +73,11 @@
             persistent-hint
           ></v-text-field>
 
-          <v-text-field
-            v-model="transaction.customDateInput"
-            label="Data da Transação (Opcional)"
-            type="date"
-            variant="outlined"
-            density="comfortable"
-            color="primary"
+          <DatePicker 
+            v-model="transaction.customDateInput" 
+            label="Data da Transação (Opcional)" 
             class="mb-2"
-            hint="Se não informada, usará o dia e a hora de hoje."
-            persistent-hint
-          ></v-text-field>
+          />
 
           <v-text-field
             v-model="transaction.description"
@@ -108,8 +102,9 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useStore } from 'vuex';
+import DatePicker from './DatePicker.vue';
 
 const dialog = ref(false);
 const form = ref(null);

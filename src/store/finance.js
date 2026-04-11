@@ -99,6 +99,10 @@ export default {
     ADD_TRANSACTION(state, transaction) {
       state.transactions.unshift(transaction);
     },
+    ADD_TRANSACTIONS_BULK(state, transactionsArray) {
+      // Unshift multiple items logically by creating a new array 
+      state.transactions = [...transactionsArray.reverse(), ...state.transactions];
+    },
     REMOVE_TRANSACTION(state, id) {
       state.transactions = state.transactions.filter(t => t.id !== id);
     },
@@ -169,6 +173,18 @@ export default {
         date: transaction.customDate || new Date().toISOString(),
       };
       commit('ADD_TRANSACTION', newTransaction);
+      dispatch('saveData');
+    },
+    importTransactionsBulk({ commit, dispatch }, transactionsArray) {
+      if (!Array.isArray(transactionsArray) || transactionsArray.length === 0) return;
+      
+      const newTxs = transactionsArray.map(tx => ({
+        ...tx,
+        amount: Number(tx.amount),
+        id: crypto.randomUUID(),
+        date: tx.customDate || new Date().toISOString(),
+      }));
+      commit('ADD_TRANSACTIONS_BULK', newTxs);
       dispatch('saveData');
     },
     removeTransaction({ commit, dispatch }, id) {

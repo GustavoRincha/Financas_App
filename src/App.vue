@@ -10,9 +10,9 @@
           </template>
         </v-list-item>
         <v-divider></v-divider>
-        <v-list-item to="/" prepend-icon="mdi-view-dashboard" title="Dashboard" active-color="white" class="mt-2 text-button"></v-list-item>
-        <v-list-item to="/transactions" prepend-icon="mdi-list-box-outline" title="Extrato" active-color="white" class="text-button"></v-list-item>
-        <v-list-item to="/investments" prepend-icon="mdi-chart-line" title="Investimentos" active-color="white" class="text-button"></v-list-item>
+        <v-list-item to="/" prepend-icon="mdi-view-dashboard" title="Dashboard" base-color="white" class="mt-2 text-button"></v-list-item>
+        <v-list-item to="/transactions" prepend-icon="mdi-list-box-outline" title="Extrato" base-color="white" class="text-button"></v-list-item>
+        <v-list-item to="/investments" prepend-icon="mdi-chart-line" title="Investimentos" base-color="white" class="text-button"></v-list-item>
       </v-list>
     </v-navigation-drawer>
 
